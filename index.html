@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectra - Spectral Audio Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a14;
+            --bg-medium: #16162a;
+            --bg-light: #1f1f3a;
+            --accent: #e94560;
+            --accent-hover: #ff6b6b;
+            --text: #ffffff;
+            --text-dim: #a0a0a0;
+            --partial-color: #00ff88;
+            --selection-color: rgba(233, 69, 96, 0.3);
+            --grid-color: rgba(255, 255, 255, 0.1);
+            --canvas-bg: #0a0a14;
+            --border-color: #2a2a4a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-medium);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+
+        .logo span {
+            color: var(--text);
+            font-weight: normal;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            padding: 0 8px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .tool-btn {
+            background: var(--bg-light);
+            border: none;
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: var(--accent);
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .tool-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tool-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Main Content */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebars */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-medium);
+            padding: 12px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-left {
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-right {
+            border-left: 1px solid var(--border-color);
+        }
+
+        .sidebar h3 {
+            color: var(--accent);
+            margin-bottom: 8px;
+            margin-top: 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sidebar h3:first-child {
+            margin-top: 0;
+        }
+
+        .panel {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .panel-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .panel-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .panel-row label {
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+
+        .panel-row span {
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+            accent-color: var(--accent);
+        }
+
+        input[type="number"] {
+            width: 70px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        select {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* Editor Area */
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: var(--canvas-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        #mainCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        #interactionCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Timeline */
+        .timeline {
+            height: 30px;
+            background: var(--bg-medium);
+            border-top: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        #timelineCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Waveform Display */
+        .waveform-container {
+            height: 80px;
+            background: var(--canvas-bg);
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        #waveformCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Transport Controls */
+        .transport {
+            background: var(--bg-medium);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .transport-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .transport-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-light);
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .transport-btn:hover {
+            background: var(--accent);
+            transform: scale(1.1);
+        }
+
+        .transport-btn.playing {
+            background: var(--accent);
+            animation: pulse 1s infinite;
+        }
+
+        .transport-btn.active {
+            background: #00cc66;
+            box-shadow: 0 0 10px rgba(0, 204, 102, 0.5);
+        }
+
+        .transport-btn.active:hover {
+            background: #00ff88;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(233, 69, 96, 0); }
+        }
+
+        .transport-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .time-display {
+            font-family: monospace;
+            font-size: 18px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 4px;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .transport-info {
+            display: flex;
+            gap: 24px;
+            margin-left: auto;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .info-item label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .info-item span {
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: var(--bg-medium);
+            padding: 4px 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-medium);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 400px;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            margin-bottom: 16px;
+            color: var(--accent);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-light);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #2a2a4a;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            margin: 20px 0;
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .drop-zone p {
+            margin-bottom: 16px;
+            color: var(--text-dim);
+        }
+
+        /* Progress */
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-light);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--partial-color));
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-light);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        /* Zoom Controls */
+        .zoom-controls {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            display: flex;
+            gap: 2px;
+            z-index: 10;
+            background: var(--bg-medium);
+            padding: 4px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .zoom-btn {
+            width: 28px;
+            height: 24px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .zoom-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Keyboard Shortcuts Help */
+        .shortcuts-list {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 16px;
+            font-size: 13px;
+        }
+
+        .shortcuts-list kbd {
+            background: var(--bg-light);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 180px;
+            display: none;
+            z-index: 1001;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .context-menu.active {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .context-menu-item:hover {
+            background: var(--bg-light);
+        }
+
+        .context-menu-item.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .context-menu-item span {
+            color: var(--text-dim);
+            font-size: 11px;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 8px 0;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 60px;
+            right: 20px;
+            background: var(--bg-dark);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: none;
+            z-index: 1002;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .notification.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">SPECTRA <span>Spectral Editor</span></div>
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button class="tool-btn" id="newBtn" title="New Blank Canvas (Ctrl+N)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z"/>
+                        <path d="M14 2V8H20"/>
+                        <path d="M12 18V12M9 15H15"/>
+                    </svg>
+                    New
+                </button>
+                <button class="tool-btn" id="openBtn" title="Open Audio File (Ctrl+O)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12V15C3 16.1046 3.89543 17 5 17H19C20.1046 17 21 16.1046 21 15V12M12 3V12M12 12L8 8M12 12L16 8"/>
+                    </svg>
+                    Open
+                </button>
+                <button class="tool-btn" id="exportBtn" title="Export Audio (Ctrl+E)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12V9C3 7.89543 3.89543 7 5 7H19C20.1046 7 21 7.89543 21 9V12M12 21V12M12 12L8 16M12 12L16 16"/>
+                    </svg>
+                    Export
+                </button>
+                <button class="tool-btn" id="saveProjectBtn" title="Save Project (Ctrl+S)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z"/>
+                        <path d="M17 21V13H7V21M7 3V8H15"/>
+                    </svg>
+                    Save
+                </button>
+                <button class="tool-btn" id="loadProjectBtn" title="Load Project">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12V15C3 16.1046 3.89543 17 5 17H19C20.1046 17 21 16.1046 21 15V12"/>
+                        <path d="M12 3V14M12 14L8 10M12 14L16 10"/>
+                        <rect x="5" y="19" width="14" height="2" rx="1"/>
+                    </svg>
+                    Load
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 10H16C18.7614 10 21 12.2386 21 15C21 17.7614 18.7614 20 16 20H12M3 10L7 6M3 10L7 14"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10H8C5.23858 10 3 12.2386 3 15C3 17.7614 5.23858 20 8 20H12M21 10L17 6M21 10L17 14"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn active" id="selectTool" title="Selection Tool (V) - Click to select, drag selected to move">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4L10 20L12 14L18 12L4 4Z"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="rectTool" title="Rectangle Select (R)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="lassoTool" title="Lasso Select (L)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22"/>
+                        <path d="M15 15L19 19M19 19L22 22M19 19L22 16M19 19L16 22"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="brushTool" title="Brush Select (B)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 12L12 22L22 12L12 2Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="penTool" title="Pen Tool (P) - Freehand draw partials">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 19L19 12L22 15L15 22L12 19Z"/>
+                        <path d="M18 13L16.5 5.5L2 2L5.5 16.5L13 18L18 13Z"/>
+                        <path d="M2 2L9.5 9.5"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="lineTool" title="Line Tool (N) - Draw straight partial with harmonics">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="19" x2="19" y2="5"/>
+                        <circle cx="5" cy="19" r="2"/>
+                        <circle cx="19" cy="5" r="2"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="pitchShiftBtn" title="Pitch Tool: Drag to shift pitch (Shift+drag for Hz mode)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3V21M12 3L8 7M12 3L16 7M12 21L8 17M12 21L16 17"/>
+                    </svg>
+                    Pitch
+                </button>
+                <button class="tool-btn" id="timeStretchBtn" title="Time Tool: Drag to stretch/compress time">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12H21M3 12L7 8M3 12L7 16M21 12L17 8M21 12L17 16"/>
+                    </svg>
+                    Time
+                </button>
+                <button class="tool-btn" id="deleteBtn" title="Delete Selected (Del)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6H21M19 6V20C19 21 18 22 17 22H7C6 22 5 21 5 20V6M8 6V4C8 3 9 2 10 2H14C15 2 16 3 16 4V6"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="invertSelBtn" title="Invert Frequencies (I) - flip vertically" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3V21M7 7L17 17M17 7L7 17"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="perpendicularBtn" title="Perpendicular - rotate 90°" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4L20 4L20 20"/>
+                        <path d="M4 4L4 20L20 20" stroke-dasharray="4 2"/>
+                        <path d="M7 10L14 17" stroke-width="3"/>
+                    </svg>
+                </button>
+                <button class="tool-btn" id="reverseSelBtn" title="Reverse in Time - flip horizontally" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 3L21 7L17 11"/>
+                        <path d="M7 21L3 17L7 13"/>
+                        <path d="M21 7H9C6 7 3 10 3 13"/>
+                        <path d="M3 17H15C18 17 21 14 21 11"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="toolbar-group">
+                <button class="tool-btn" id="analyzeBtn" title="Re-analyze Audio" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2V6M12 18V22M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07M2 12H6M18 12H22M4.93 19.07L7.76 16.24M16.24 7.76L19.07 4.93"/>
+                    </svg>
+                    Analyze
+                </button>
+                <button class="tool-btn active" id="previewAudioBtn" title="Preview Audio - hear selected partials (M)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 5L6 9H2V15H6L11 19V5Z"/>
+                        <path d="M15.54 8.46C16.48 9.4 17 10.67 17 12C17 13.33 16.48 14.6 15.54 15.54"/>
+                        <path d="M19.07 4.93C20.94 6.8 22 9.34 22 12C22 14.66 20.94 17.2 19.07 19.07"/>
+                    </svg>
+                    Monitor
+                </button>
+                <button class="tool-btn" id="helpBtn" title="Help (?)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9 9C9 5.5 15 5.5 15 9C15 11 12 11 12 14M12 18H12.01"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- LEFT SIDEBAR: Analysis & Settings -->
+        <aside class="sidebar sidebar-left">
+            <h3>Analysis</h3>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>FFT</label>
+                    <select id="fftSize">
+                        <option value="1024">1024</option>
+                        <option value="2048" selected>2048</option>
+                        <option value="4096">4096</option>
+                        <option value="8192">8192</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Hop</label>
+                    <select id="hopSize">
+                        <option value="256">256</option>
+                        <option value="512" selected>512</option>
+                        <option value="1024">1024</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Window</label>
+                    <select id="windowType">
+                        <option value="hann" selected>Hann</option>
+                        <option value="hamming">Hamming</option>
+                        <option value="blackman">Blackman</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Min dB</label>
+                    <input type="number" id="minAmplitude" value="-60" min="-100" max="0" style="width: 50px;">
+                </div>
+            </div>
+
+            <h3>Partial Tracking</h3>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Max Partials</label>
+                    <input type="number" id="maxPartials" value="500" min="10" max="2000" style="width: 60px;">
+                </div>
+                <div class="panel-row">
+                    <label>Min Duration</label>
+                    <input type="number" id="minDuration" value="50" min="10" max="500" style="width: 50px;"> ms
+                </div>
+                <div class="panel-row">
+                    <label>Freq Tolerance</label>
+                    <input type="number" id="freqTolerance" value="50" min="10" max="200" style="width: 50px;"> Hz
+                </div>
+            </div>
+
+            <h3>Noise/Residual</h3>
+            <div class="panel" id="noiseSettings">
+                <div class="panel-row">
+                    <label>Enable</label>
+                    <input type="checkbox" id="noiseEnabled">
+                    <span id="noiseLevel" style="margin-left: auto; color: var(--text-dim);">-</span>
+                </div>
+                <div class="panel-row">
+                    <label>Mix</label>
+                    <input type="range" id="noiseMixLevel" min="0" max="100" value="30" style="width: 70px;">
+                    <span id="noiseMixDisplay">30%</span>
+                </div>
+                <div class="panel-row">
+                    <button class="btn btn-secondary" id="analyzeNoiseBtn" style="width: 100%; font-size: 10px;">Analyze Residual</button>
+                </div>
+            </div>
+
+            <h3>Display</h3>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Freq Min</label>
+                    <input type="number" id="freqMin" value="20" min="20" max="1000" style="width: 60px;">
+                </div>
+                <div class="panel-row">
+                    <label>Freq Max</label>
+                    <input type="number" id="freqMax" value="8000" min="1000" max="22050" style="width: 60px;">
+                </div>
+                <div class="panel-row">
+                    <label>Scale</label>
+                    <select id="freqScale">
+                        <option value="log" selected>Logarithmic</option>
+                        <option value="linear">Linear</option>
+                        <option value="mel">Mel</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Color</label>
+                    <select id="colorMode">
+                        <option value="amplitude" selected>Amplitude</option>
+                        <option value="frequency">Frequency</option>
+                        <option value="single">Single Color</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3>Grid</h3>
+            <div class="panel" id="gridSettings">
+                <div class="panel-row">
+                    <label>Show</label>
+                    <input type="checkbox" id="gridEnabled">
+                    <label style="margin-left: 8px;">Snap</label>
+                    <input type="checkbox" id="gridSnapEnabled">
+                </div>
+                <div class="panel-row">
+                    <label>Time</label>
+                    <select id="gridTimeResolution">
+                        <option value="0.01">10ms</option>
+                        <option value="0.025">25ms</option>
+                        <option value="0.05">50ms</option>
+                        <option value="0.1" selected>100ms</option>
+                        <option value="0.25">250ms</option>
+                        <option value="0.5">500ms</option>
+                        <option value="1">1s</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Freq</label>
+                    <select id="gridFreqMode">
+                        <option value="hz" selected>Hz</option>
+                        <option value="semitones">Semitones</option>
+                    </select>
+                    <select id="gridFreqResolution" style="width: 70px;">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="quantizeTimeBtn" style="flex: 1; font-size: 10px;">Snap Time</button>
+                    <button class="btn btn-secondary" id="quantizeFreqBtn" style="flex: 1; font-size: 10px;">Snap Freq</button>
+                </div>
+            </div>
+
+            <h3>Musical Grid</h3>
+            <div class="panel" id="beatQuantSettings">
+                <div class="panel-row">
+                    <label>Beat Grid</label>
+                    <input type="checkbox" id="beatGridEnabled">
+                </div>
+                <div class="panel-row">
+                    <label>BPM</label>
+                    <input type="number" id="quantBpm" value="120" min="20" max="300" style="width: 55px;">
+                    <select id="quantBeatDivision" style="width: 65px;">
+                        <option value="1">1</option>
+                        <option value="2">1/2</option>
+                        <option value="4" selected>1/4</option>
+                        <option value="8">1/8</option>
+                        <option value="16">1/16</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <button class="btn btn-secondary" id="quantizeToBpmBtn" style="width: 100%; font-size: 10px;">Quantize to Beat</button>
+                </div>
+            </div>
+
+            <div class="panel" id="pitchQuantSettings">
+                <div class="panel-row">
+                    <label>Pitch Grid</label>
+                    <input type="checkbox" id="pitchGridEnabled">
+                </div>
+                <div class="panel-row">
+                    <label>Root</label>
+                    <select id="quantRootNote" style="width: 55px;">
+                        <option value="0">C</option>
+                        <option value="1">C#</option>
+                        <option value="2">D</option>
+                        <option value="3">D#</option>
+                        <option value="4">E</option>
+                        <option value="5">F</option>
+                        <option value="6">F#</option>
+                        <option value="7">G</option>
+                        <option value="8">G#</option>
+                        <option value="9" selected>A</option>
+                        <option value="10">A#</option>
+                        <option value="11">B</option>
+                    </select>
+                    <select id="quantScale" style="width: 75px;">
+                        <option value="chromatic">Chrom</option>
+                        <option value="major" selected>Major</option>
+                        <option value="minor">Minor</option>
+                        <option value="pentatonicMajor">Pent</option>
+                        <option value="blues">Blues</option>
+                        <option value="fifths">5ths</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <button class="btn btn-secondary" id="quantizeToScaleBtn" style="width: 100%; font-size: 10px;">Quantize to Scale</button>
+                </div>
+            </div>
+        </aside>
+
+        <div class="editor-area">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="mainCanvas"></canvas>
+                <canvas id="overlayCanvas"></canvas>
+                <canvas id="interactionCanvas"></canvas>
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoomInX" title="Zoom In Time">+T</button>
+                    <button class="zoom-btn" id="zoomOutX" title="Zoom Out Time">-T</button>
+                    <button class="zoom-btn" id="zoomInY" title="Zoom In Freq">+F</button>
+                    <button class="zoom-btn" id="zoomOutY" title="Zoom Out Freq">-F</button>
+                    <button class="zoom-btn" id="zoomFit" title="Fit View">Fit</button>
+                </div>
+            </div>
+            <div class="waveform-container">
+                <canvas id="waveformCanvas"></canvas>
+            </div>
+            <div class="timeline">
+                <canvas id="timelineCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR: Tools & Effects -->
+        <aside class="sidebar sidebar-right">
+            <h3>Drawing</h3>
+            <div class="panel" id="drawingSettings">
+                <div class="panel-row">
+                    <label>Pen dB</label>
+                    <input type="number" id="penStrength" value="-20" min="-60" max="0" style="width: 50px;">
+                </div>
+                <div class="panel-row">
+                    <label>Line</label>
+                    <input type="number" id="lineStartStrength" value="-20" min="-60" max="0" style="width: 45px;" title="Start dB">
+                    <span style="color: var(--text-dim);">→</span>
+                    <input type="number" id="lineEndStrength" value="-30" min="-60" max="0" style="width: 45px;" title="End dB">
+                </div>
+                <div class="panel-row">
+                    <label>Harmonics</label>
+                    <input type="number" id="lineHarmonics" value="0" min="0" max="32" style="width: 40px;">
+                    <select id="harmonicRolloff" style="width: 70px;">
+                        <option value="6" selected>-6dB</option>
+                        <option value="12">-12dB</option>
+                        <option value="3">-3dB</option>
+                        <option value="0">Flat</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3>Selection Tools</h3>
+            <div class="panel" id="advancedSelectionPanel">
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="selectByCriteriaBtn" style="flex: 1; font-size: 10px;">By Criteria...</button>
+                    <button class="btn btn-secondary" id="invertSelectionBtn" style="flex: 1; font-size: 10px;">Invert</button>
+                </div>
+            </div>
+
+            <h3>Transform</h3>
+            <div class="panel" id="transformSettings">
+                <div class="panel-row">
+                    <label>Harmonics</label>
+                    <input type="number" id="harmonicsCount" value="8" min="1" max="32" style="width: 40px;">
+                    <input type="number" id="harmonicsDropoff" value="6" min="0" max="24" style="width: 40px;" title="dB/oct">
+                    <input type="checkbox" id="harmonicsOddOnly" title="Odd only">
+                </div>
+                <div class="panel-row">
+                    <button class="btn btn-secondary" id="addHarmonicsBtn" style="width: 100%; font-size: 10px;">Add Harmonics</button>
+                </div>
+                <div class="panel-row" style="border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                    <label>Explode</label>
+                    <select id="explodeOrder" style="width: 80px;">
+                        <option value="original">Original</option>
+                        <option value="ascending">Asc</option>
+                        <option value="descending">Desc</option>
+                        <option value="random">Random</option>
+                    </select>
+                    <select id="explodeSpacing" style="width: 50px;">
+                        <option value="even">Even</option>
+                        <option value="proportional">Prop</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <button class="btn btn-secondary" id="explodeSelectionBtn" style="width: 100%; font-size: 10px;">Explode Selection</button>
+                </div>
+                <div class="panel-row" style="border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                    <label>Rotate</label>
+                    <input type="number" id="rotateAngle" value="45" min="-180" max="180" style="width: 50px;" title="Degrees">
+                    <select id="rotatePivot" style="width: 70px;">
+                        <option value="center">Center</option>
+                        <option value="start">Start</option>
+                        <option value="end">End</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <button class="btn btn-secondary" id="rotateSelectionBtn" style="width: 100%; font-size: 10px;">Rotate Selection</button>
+                </div>
+                <div class="panel-row" style="border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px; gap: 4px;">
+                    <button class="btn btn-secondary" id="alignLeftBtn" style="flex: 1; font-size: 10px;">Align Left</button>
+                    <button class="btn btn-secondary" id="alignRightBtn" style="flex: 1; font-size: 10px;">Align Right</button>
+                </div>
+            </div>
+
+            <h3>Spectral EQ</h3>
+            <div class="panel" id="eqSettings">
+                <div style="position: relative; height: 80px; background: var(--bg-dark); border-radius: 4px; margin-bottom: 6px; overflow: hidden;">
+                    <canvas id="eqCurveCanvas" style="width: 100%; height: 100%; cursor: crosshair;"></canvas>
+                    <div style="position: absolute; top: 2px; left: 4px; font-size: 8px; color: var(--text-dim); pointer-events: none;">+24</div>
+                    <div style="position: absolute; bottom: 2px; left: 4px; font-size: 8px; color: var(--text-dim); pointer-events: none;">-24</div>
+                </div>
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="eqApplyBtn" style="flex: 1; font-size: 10px;">Apply</button>
+                    <button class="btn btn-secondary" id="eqFlattenBtn" style="flex: 0 0 auto; font-size: 10px;">Flat</button>
+                </div>
+            </div>
+
+            <h3>Effects</h3>
+            <div class="panel" id="effectsPanel">
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="vibratoTremoloBtn" style="flex: 1; font-size: 10px;">Vibrato</button>
+                    <button class="btn btn-secondary" id="chorusBtn" style="flex: 1; font-size: 10px;">Chorus</button>
+                </div>
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="spectralFreezeBtn" style="flex: 1; font-size: 10px;">Freeze</button>
+                    <button class="btn btn-secondary" id="ampEnvelopeBtn" style="flex: 1; font-size: 10px;">Envelope</button>
+                </div>
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="spectralDelayBtn" style="flex: 1; font-size: 10px;">Delay</button>
+                    <button class="btn btn-secondary" id="spectralReverbBtn" style="flex: 1; font-size: 10px;">Reverb</button>
+                </div>
+                <div class="panel-row" style="gap: 4px;">
+                    <button class="btn btn-secondary" id="formantShiftBtn" style="flex: 1; font-size: 10px;">Formant</button>
+                </div>
+                <div class="panel-row" style="gap: 4px; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                    <button class="btn btn-secondary" id="mergePartialsBtn" style="flex: 1; font-size: 10px;">Merge</button>
+                    <button class="btn btn-secondary" id="splitPartialsBtn" style="flex: 1; font-size: 10px;">Split</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="transport">
+        <div class="transport-buttons">
+            <button class="transport-btn" id="stopBtn" title="Stop">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12"/>
+                </svg>
+            </button>
+            <button class="transport-btn" id="playBtn" title="Play/Pause (Space)">
+                <svg viewBox="0 0 24 24" fill="currentColor" id="playIcon">
+                    <path d="M8 5V19L19 12L8 5Z"/>
+                </svg>
+            </button>
+            <select id="playbackRate" title="Playback Rate" style="height: 32px; background: var(--bg-medium); color: var(--text); border: 1px solid var(--border-color); border-radius: 4px; padding: 0 8px; font-size: 12px;">
+                <option value="0.1">0.1x</option>
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+                <option value="5">5x</option>
+                <option value="10">10x</option>
+            </select>
+            <div style="width: 1px; height: 24px; background: var(--border-color); margin: 0 4px;"></div>
+            <button class="transport-btn" id="freezeBtn" title="Freeze Frame Mode">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="4" width="16" height="16" rx="2"/>
+                    <line x1="9" y1="9" x2="9" y2="15"/>
+                    <line x1="15" y1="9" x2="15" y2="15"/>
+                </svg>
+            </button>
+            <button class="transport-btn" id="stepBackBtn" title="Step Back Frame">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 6H8V18H6V6ZM9 12L18 6V18L9 12Z"/>
+                </svg>
+            </button>
+            <button class="transport-btn" id="stepFwdBtn" title="Step Forward Frame">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 6H18V18H16V6ZM6 6L15 12L6 18V6Z"/>
+                </svg>
+            </button>
+            <button class="transport-btn" id="loopBtn" title="Loop Selection (Ctrl+L)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 1L21 5L17 9M3 11V9C3 6.23858 5.23858 4 8 4H20M7 23L3 19L7 15M21 13V15C21 17.7614 18.7614 20 16 20H4"/>
+                </svg>
+            </button>
+        </div>
+        <div class="time-display" id="timeDisplay">00:00.000</div>
+        <input type="range" id="playbackPosition" min="0" max="100" value="0" style="flex: 1; margin: 0 20px;">
+        <div class="transport-info">
+            <div class="info-item">
+                <label>Duration</label>
+                <span id="durationDisplay">00:00.000</span>
+            </div>
+            <div class="info-item">
+                <label>Sample Rate</label>
+                <span id="sampleRateDisplay">-</span>
+            </div>
+            <div class="info-item">
+                <label>Partials</label>
+                <span id="partialsDisplay">0</span>
+            </div>
+        </div>
+        <div class="transport-info" id="selectionInfo" style="border-left: 1px solid var(--border-color); padding-left: 12px; margin-left: 12px;">
+            <div class="info-item">
+                <label>Selected</label>
+                <span id="selectedCount">0</span>
+            </div>
+            <div class="info-item">
+                <label>Freq</label>
+                <span id="selectedFreq">-</span>
+            </div>
+            <div class="info-item">
+                <label>Time</label>
+                <span id="selectedTime">-</span>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-left: 20px; padding-left: 20px; border-left: 1px solid var(--border-color);">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                <div id="levelMeter" style="width: 60px; height: 12px; background: var(--bg-dark); border-radius: 2px; overflow: hidden; position: relative;">
+                    <div id="levelMeterFill" style="height: 100%; width: 0%; background: linear-gradient(to right, #4ade80, #facc15, #ef4444); transition: width 50ms;"></div>
+                    <div id="levelMeterPeak" style="position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; transition: left 50ms;"></div>
+                </div>
+                <span style="font-size: 9px; color: var(--text-dim);">Level</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                <input type="range" id="masterVolume" min="0" max="150" value="100" style="width: 80px; height: 6px;" title="Master Volume">
+                <span id="masterVolumeDisplay" style="font-size: 9px; color: var(--text-dim);">100%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="statusText">Ready. Open an audio file to begin.</span>
+        <span id="cursorInfo">Cursor: - Hz, - s</span>
+    </div>
+
+    <!-- Open File Modal -->
+    <div class="modal-overlay" id="openModal">
+        <div class="modal">
+            <h2>Open Audio File</h2>
+            <div class="drop-zone" id="dropZone">
+                <p>Drag & drop an audio file here</p>
+                <p>or</p>
+                <button class="btn btn-primary" id="browseBtn">Browse Files</button>
+                <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                <input type="file" id="projectFileInput" accept=".spectra,.json" style="display: none;">
+            </div>
+            <p style="font-size: 12px; color: var(--text-dim); text-align: center;">
+                Supported formats: WAV, MP3, OGG, FLAC, AAC
+            </p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelOpenBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Canvas Modal -->
+    <div class="modal-overlay" id="newCanvasModal">
+        <div class="modal">
+            <h2>New Blank Canvas</h2>
+            <p style="color: var(--text-dim); margin-bottom: 16px;">Create a blank canvas to draw partials from scratch.</p>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Duration (seconds)</label>
+                    <input type="number" id="newCanvasDuration" value="10" min="1" max="300" step="0.1" style="width: 80px;">
+                </div>
+                <div class="panel-row">
+                    <label>Sample Rate</label>
+                    <select id="newCanvasSampleRate">
+                        <option value="44100" selected>44100 Hz</option>
+                        <option value="48000">48000 Hz</option>
+                        <option value="96000">96000 Hz</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelNewCanvasBtn">Cancel</button>
+                <button class="btn btn-primary" id="createNewCanvasBtn">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Progress Modal -->
+    <div class="modal-overlay" id="analysisModal">
+        <div class="modal">
+            <h2>Analyzing Audio</h2>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="analysisProgress"></div>
+                </div>
+                <p class="progress-text" id="analysisStatus">Preparing analysis...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pitch Shift Modal -->
+    <div class="modal-overlay" id="pitchModal">
+        <div class="modal">
+            <h2>Pitch Shift</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Semitones</label>
+                    <input type="number" id="pitchSemitones" value="0" min="-24" max="24" step="1">
+                </div>
+                <div class="panel-row">
+                    <label>Cents</label>
+                    <input type="number" id="pitchCents" value="0" min="-100" max="100" step="1">
+                </div>
+                <div class="panel-row">
+                    <label>Ratio</label>
+                    <input type="number" id="pitchRatio" value="1.0" min="0.25" max="4.0" step="0.01">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelPitchBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyPitchBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Stretch Modal -->
+    <div class="modal-overlay" id="timeModal">
+        <div class="modal">
+            <h2>Time Stretch</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Stretch Factor</label>
+                    <input type="number" id="stretchFactor" value="1.0" min="0.25" max="4.0" step="0.01">
+                </div>
+                <div class="panel-row">
+                    <label>Anchor</label>
+                    <select id="stretchAnchor">
+                        <option value="start">Start</option>
+                        <option value="center">Center</option>
+                        <option value="end">End</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelTimeBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyTimeBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <h2>Export Audio</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Format</label>
+                    <select id="exportFormat">
+                        <option value="wav">WAV (Uncompressed)</option>
+                        <option value="mp3">MP3</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Sample Rate</label>
+                    <select id="exportSampleRate">
+                        <option value="44100">44100 Hz</option>
+                        <option value="48000">48000 Hz</option>
+                        <option value="96000">96000 Hz</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Export</label>
+                    <select id="exportRange">
+                        <option value="all">Entire File</option>
+                        <option value="selection">Selection Only</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Normalize</label>
+                    <input type="checkbox" id="exportNormalize" checked>
+                </div>
+                <div class="panel-row">
+                    <label>Include Noise</label>
+                    <input type="checkbox" id="exportNoise">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelExportBtn">Cancel</button>
+                <button class="btn btn-primary" id="doExportBtn">Export</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal" style="max-width: 700px;">
+            <h2>Keyboard Shortcuts</h2>
+            <div class="shortcuts-list">
+                <kbd>Space</kbd><span>Play/Pause</span>
+                <kbd>Ctrl+O</kbd><span>Open audio file</span>
+                <kbd>Ctrl+E</kbd><span>Export audio</span>
+                <kbd>Ctrl+Z</kbd><span>Undo</span>
+                <kbd>Ctrl+Y</kbd><span>Redo</span>
+                <kbd>Ctrl+A</kbd><span>Select all partials</span>
+                <kbd>Escape</kbd><span>Deselect all</span>
+                <kbd>Delete</kbd><span>Delete selected partials</span>
+                <kbd>V</kbd><span>Selection tool (drag selected to move)</span>
+                <kbd>R</kbd><span>Rectangle select tool</span>
+                <kbd>L</kbd><span>Lasso select tool</span>
+                <kbd>B</kbd><span>Brush select tool</span>
+                <kbd>P</kbd><span>Pen tool (freehand draw)</span>
+                <kbd>N</kbd><span>Line tool (vector draw with harmonics)</span>
+                <kbd>S</kbd><span>Toggle scrub mode</span>
+                <kbd>M</kbd><span>Toggle preview audio monitor</span>
+                <kbd>G</kbd><span>Toggle grid display</span>
+                <kbd>Q</kbd><span>Quantize selection to grid</span>
+                <kbd>+/-</kbd><span>Zoom in/out</span>
+                <kbd>Ctrl+L</kbd><span>Loop selection</span>
+                <kbd>Shift+Click</kbd><span>Add to selection</span>
+                <kbd>Alt+Drag</kbd><span>Pan view</span>
+                <kbd>Pitch+Drag</kbd><span>Pitch shift (semitones)</span>
+                <kbd>Pitch+Shift+Drag</kbd><span>Frequency shift (Hz)</span>
+                <kbd>Time+Drag</kbd><span>Time stretch</span>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" id="closeHelpBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" id="ctxSelectAll">Select All <span>Ctrl+A</span></div>
+        <div class="context-menu-item" id="ctxDeselect">Deselect <span>Esc</span></div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="ctxCopy">Copy <span>Ctrl+C</span></div>
+        <div class="context-menu-item" id="ctxPaste">Paste <span>Ctrl+V</span></div>
+        <div class="context-menu-item" id="ctxDelete">Delete <span>Del</span></div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="ctxPitchShift">Pitch Shift...</div>
+        <div class="context-menu-item" id="ctxTimeStretch">Time Stretch...</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="ctxPlaySelection">Play Selection</div>
+    </div>
+
+    <!-- Select by Criteria Modal -->
+    <div class="modal-overlay" id="selectByCriteriaModal">
+        <div class="modal" style="max-width: 500px;">
+            <h2>Select by Criteria</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Mode</label>
+                    <select id="criteriaMode">
+                        <option value="replace">Replace Selection</option>
+                        <option value="add">Add to Selection</option>
+                        <option value="subtract">Subtract from Selection</option>
+                        <option value="intersect">Intersect with Selection</option>
+                    </select>
+                </div>
+            </div>
+            <div class="panel">
+                <h4 style="color: var(--accent); margin-bottom: 8px; font-size: 11px;">FREQUENCY RANGE</h4>
+                <div class="panel-row">
+                    <label>Enable</label>
+                    <input type="checkbox" id="criteriaFreqEnabled" checked>
+                </div>
+                <div class="panel-row">
+                    <label>Min (Hz)</label>
+                    <input type="number" id="criteriaFreqMin" value="20" min="20" max="20000">
+                </div>
+                <div class="panel-row">
+                    <label>Max (Hz)</label>
+                    <input type="number" id="criteriaFreqMax" value="20000" min="20" max="20000">
+                </div>
+            </div>
+            <div class="panel">
+                <h4 style="color: var(--accent); margin-bottom: 8px; font-size: 11px;">AMPLITUDE RANGE</h4>
+                <div class="panel-row">
+                    <label>Enable</label>
+                    <input type="checkbox" id="criteriaAmpEnabled">
+                </div>
+                <div class="panel-row">
+                    <label>Min (dB)</label>
+                    <input type="number" id="criteriaAmpMin" value="-60" min="-100" max="0">
+                </div>
+                <div class="panel-row">
+                    <label>Max (dB)</label>
+                    <input type="number" id="criteriaAmpMax" value="0" min="-100" max="0">
+                </div>
+            </div>
+            <div class="panel">
+                <h4 style="color: var(--accent); margin-bottom: 8px; font-size: 11px;">DURATION</h4>
+                <div class="panel-row">
+                    <label>Enable</label>
+                    <input type="checkbox" id="criteriaDurEnabled">
+                </div>
+                <div class="panel-row">
+                    <label>Min (ms)</label>
+                    <input type="number" id="criteriaDurMin" value="0" min="0" max="10000">
+                </div>
+                <div class="panel-row">
+                    <label>Max (ms)</label>
+                    <input type="number" id="criteriaDurMax" value="10000" min="0" max="60000">
+                </div>
+            </div>
+            <div class="panel">
+                <h4 style="color: var(--accent); margin-bottom: 8px; font-size: 11px;">TIME RANGE</h4>
+                <div class="panel-row">
+                    <label>Enable</label>
+                    <input type="checkbox" id="criteriaTimeEnabled">
+                </div>
+                <div class="panel-row">
+                    <label>Start (s)</label>
+                    <input type="number" id="criteriaTimeStart" value="0" min="0" step="0.1">
+                </div>
+                <div class="panel-row">
+                    <label>End (s)</label>
+                    <input type="number" id="criteriaTimeEnd" value="10" min="0" step="0.1">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelSelectCriteriaBtn">Cancel</button>
+                <button class="btn btn-primary" id="applySelectCriteriaBtn">Select</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grow/Shrink Selection Modal -->
+    <div class="modal-overlay" id="growShrinkModal">
+        <div class="modal">
+            <h2>Grow/Shrink Selection</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Time (ms)</label>
+                    <input type="number" id="growShrinkTime" value="50" min="-1000" max="1000">
+                </div>
+                <div class="panel-row">
+                    <label>Frequency (Hz)</label>
+                    <input type="number" id="growShrinkFreq" value="100" min="-5000" max="5000">
+                </div>
+                <div class="panel-row">
+                    <label style="font-size: 10px; color: var(--text-dim);">Positive values grow, negative shrink</label>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelGrowShrinkBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyGrowShrinkBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vibrato/Tremolo Modal -->
+    <div class="modal-overlay" id="vibratoTremoloModal">
+        <div class="modal">
+            <h2>Vibrato / Tremolo</h2>
+            <div class="panel">
+                <h4 style="color: var(--accent); margin-bottom: 8px; font-size: 11px;">VIBRATO (Pitch)</h4>
+                <div class="panel-row">
+                    <label>Rate (Hz)</label>
+                    <input type="number" id="vibratoRate" value="5" min="0.1" max="20" step="0.1">
+                </div>
+                <div class="panel-row">
+                    <label>Depth (cents)</label>
+                    <input type="number" id="vibratoDepth" value="50" min="0" max="200">
+                </div>
+            </div>
+            <div class="panel">
+                <h4 style="color: var(--accent); margin-bottom: 8px; font-size: 11px;">TREMOLO (Amplitude)</h4>
+                <div class="panel-row">
+                    <label>Rate (Hz)</label>
+                    <input type="number" id="tremoloRate" value="5" min="0.1" max="20" step="0.1">
+                </div>
+                <div class="panel-row">
+                    <label>Depth (dB)</label>
+                    <input type="number" id="tremoloDepth" value="3" min="0" max="24" step="0.5">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelVibratoTremoloBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyVibratoTremoloBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chorus/Unison Modal -->
+    <div class="modal-overlay" id="chorusModal">
+        <div class="modal">
+            <h2>Chorus / Unison</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Voices</label>
+                    <input type="number" id="chorusVoices" value="3" min="2" max="8">
+                </div>
+                <div class="panel-row">
+                    <label>Detune (cents)</label>
+                    <input type="number" id="chorusDetune" value="10" min="1" max="100">
+                </div>
+                <div class="panel-row">
+                    <label>Time Spread (ms)</label>
+                    <input type="number" id="chorusTimeSpread" value="20" min="0" max="100">
+                </div>
+                <div class="panel-row">
+                    <label>Amplitude Spread (dB)</label>
+                    <input type="number" id="chorusAmpSpread" value="3" min="0" max="12" step="0.5">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelChorusBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyChorusBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spectral Freeze/Smear Modal -->
+    <div class="modal-overlay" id="spectralFreezeModal">
+        <div class="modal">
+            <h2>Spectral Freeze / Smear</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Mode</label>
+                    <select id="spectralFreezeMode">
+                        <option value="freeze">Freeze (Hold frequencies)</option>
+                        <option value="smear">Smear (Blur over time)</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Duration (s)</label>
+                    <input type="number" id="spectralFreezeDuration" value="2" min="0.1" max="30" step="0.1">
+                </div>
+                <div class="panel-row" id="smearAmountRow">
+                    <label>Smear Amount</label>
+                    <input type="range" id="spectralSmearAmount" min="0" max="100" value="50" style="width: 100px;">
+                    <span id="smearAmountDisplay">50%</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelSpectralFreezeBtn">Cancel</button>
+                <button class="btn btn-primary" id="applySpectralFreezeBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Amplitude Envelope Modal -->
+    <div class="modal-overlay" id="ampEnvelopeModal">
+        <div class="modal" style="max-width: 550px;">
+            <h2>Amplitude Envelope</h2>
+            <div class="panel">
+                <div style="position: relative; height: 150px; background: var(--bg-dark); border-radius: 4px; margin-bottom: 8px; overflow: hidden;">
+                    <canvas id="ampEnvelopeCanvas" style="width: 100%; height: 100%; cursor: crosshair;"></canvas>
+                    <div style="position: absolute; top: 2px; left: 4px; font-size: 9px; color: var(--text-dim); pointer-events: none;">+12dB</div>
+                    <div style="position: absolute; top: 50%; left: 4px; transform: translateY(-50%); font-size: 9px; color: var(--text-dim); pointer-events: none;">0dB</div>
+                    <div style="position: absolute; bottom: 2px; left: 4px; font-size: 9px; color: var(--text-dim); pointer-events: none;">-inf</div>
+                </div>
+                <div class="panel-row">
+                    <label>Preset</label>
+                    <select id="ampEnvelopePreset">
+                        <option value="custom">Custom</option>
+                        <option value="fadeIn">Fade In</option>
+                        <option value="fadeOut">Fade Out</option>
+                        <option value="swell">Swell</option>
+                        <option value="pulse">Pulse</option>
+                        <option value="tremolo">Tremolo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelAmpEnvelopeBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyAmpEnvelopeBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spectral Delay Modal -->
+    <div class="modal-overlay" id="spectralDelayModal">
+        <div class="modal">
+            <h2>Spectral Delay</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Mode</label>
+                    <select id="spectralDelayMode">
+                        <option value="lowFirst">Low Frequencies First</option>
+                        <option value="highFirst">High Frequencies First</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+                <div class="panel-row">
+                    <label>Max Delay (ms)</label>
+                    <input type="number" id="spectralDelayMax" value="500" min="10" max="5000">
+                </div>
+                <div class="panel-row">
+                    <label>Frequency Range</label>
+                </div>
+                <div class="panel-row">
+                    <label>Low (Hz)</label>
+                    <input type="number" id="spectralDelayFreqLow" value="20" min="20" max="20000">
+                </div>
+                <div class="panel-row">
+                    <label>High (Hz)</label>
+                    <input type="number" id="spectralDelayFreqHigh" value="8000" min="20" max="20000">
+                </div>
+                <h4 style="color: var(--accent); margin: 12px 0 8px 0; font-size: 11px;">FEEDBACK</h4>
+                <div class="panel-row">
+                    <label>Repeats</label>
+                    <input type="number" id="spectralDelayRepeats" value="0" min="0" max="10">
+                </div>
+                <div class="panel-row">
+                    <label>Decay (dB/repeat)</label>
+                    <input type="number" id="spectralDelayDecay" value="-6" min="-24" max="-1" step="0.5">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelSpectralDelayBtn">Cancel</button>
+                <button class="btn btn-primary" id="applySpectralDelayBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spectral Reverb Modal -->
+    <div class="modal-overlay" id="spectralReverbModal">
+        <div class="modal">
+            <h2>Spectral Reverb</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Decay Time (s)</label>
+                    <input type="number" id="reverbDecayTime" value="2" min="0.1" max="10" step="0.1">
+                </div>
+                <div class="panel-row">
+                    <label>Diffusion</label>
+                    <input type="range" id="reverbDiffusion" min="0" max="100" value="70" style="width: 100px;">
+                    <span id="reverbDiffusionDisplay">70%</span>
+                </div>
+                <div class="panel-row">
+                    <label>Density</label>
+                    <input type="number" id="reverbDensity" value="8" min="2" max="20">
+                </div>
+                <div class="panel-row">
+                    <label>Damping (Hz)</label>
+                    <input type="number" id="reverbDamping" value="4000" min="500" max="20000">
+                </div>
+                <div class="panel-row">
+                    <label>Pre-delay (ms)</label>
+                    <input type="number" id="reverbPredelay" value="20" min="0" max="200">
+                </div>
+                <div class="panel-row">
+                    <label>Mix (%)</label>
+                    <input type="range" id="reverbMix" min="0" max="100" value="50" style="width: 100px;">
+                    <span id="reverbMixDisplay">50%</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelSpectralReverbBtn">Cancel</button>
+                <button class="btn btn-primary" id="applySpectralReverbBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formant Shift Modal -->
+    <div class="modal-overlay" id="formantShiftModal">
+        <div class="modal">
+            <h2>Formant Shift</h2>
+            <div class="panel">
+                <div class="panel-row">
+                    <label>Shift (semitones)</label>
+                    <input type="number" id="formantShiftAmount" value="0" min="-24" max="24" step="1">
+                </div>
+                <div class="panel-row">
+                    <label>Preserve Pitch</label>
+                    <input type="checkbox" id="formantPreservePitch" checked>
+                </div>
+                <div class="panel-row">
+                    <label style="font-size: 10px; color: var(--text-dim);">Shifts spectral envelope (formants) independently of fundamental pitch</label>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="cancelFormantShiftBtn">Cancel</button>
+                <button class="btn btn-primary" id="applyFormantShiftBtn">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
